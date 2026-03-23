@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PAV Engine v3 — Metodo Eureka</title>
+<style>
+*, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+:root {
+  --bg:    #0C0C18; --surf:  #13131F; --card:  #18182A;
+  --bord:  #252540; --gold:  #F0A500; --blue:  #2E86C1;
+  --red:   #E74C3C; --green: #27AE60; --text:  #E8E8F2; --muted: #666; --r:12px;
+}
+body {
+  background:var(--bg); color:var(--text);
+  font-family:'Trebuchet MS',Arial,sans-serif;
+  min-height:100vh; padding:24px 16px 80px;
+  display:flex; flex-direction:column; align-items:center; gap:20px;
+}
+.badge { font-size:9px; letter-spacing:3px; color:var(--muted); text-transform:uppercase; text-align:center; }
+h1 { font-size:22px; font-weight:900; letter-spacing:1px; text-align:center; }
+.sub { font-size:11px; color:var(--muted); letter-spacing:1px; text-align:center; }
+
+/* TABS */
+.tabs { display:flex; gap:8px; width:100%; max-width:900px; }
+.tab { flex:1; padding:10px; background:var(--surf); border:1.5px solid var(--bord); border-radius:8px; color:var(--muted); font-size:11px; font-weight:700; letter-spacing:1px; cursor:pointer; text-align:center; text-transform:uppercase; transition:all .2s; }
+.tab:hover { border-color:var(--gold); color:var(--text); }
+.tab.active { background:var(--gold); border-color:var(--gold); color:#000; }
+
+/* ZONE BUTTONS */
+.zone-row { display:flex; gap:10px; width:100%; max-width:900px; }
+.zone-btn { flex:1; padding:14px 8px; border-radius:10px; border:2px solid var(--bord); background:var(--surf); cursor:pointer; text-align:center; transition:all .2s; display:flex; flex-direction:column; align-items:center; gap:5px; }
+.zone-btn:hover { transform:translateY(-2px); }
+.zone-btn.active.z1 { border-color:var(--blue); background:#0a1520; }
+.zone-btn.active.z2 { border-color:var(--red); background:#1a0a0a; }
+.zone-btn.active.z3 { border-color:var(--green); background:#0a1a0f; }
+.zone-icon { font-size:24px; } .zone-lbl { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); }
+.zone-kw { font-size:15px; font-weight:900; letter-spacing:1px; }
+
+/* PROGRESS */
+.prog-wrap { width:100%; max-width:900px; }
+.prog-info { display:flex; justify-content:space-between; font-size:11px; color:var(--muted); margin-bottom:5px; letter-spacing:1px; }
+.prog-bar { height:3px; background:#1a1a2a; border-radius:99px; overflow:hidden; }
+.prog-fill { height:100%; background:linear-gradient(90deg,var(--gold),var(--green)); border-radius:99px; transition:width .4s; }
+
+/* CONTENT */
+.content { width:100%; max-width:900px; display:flex; flex-direction:column; gap:14px; }
+
+/* RULES BOX */
+.rules-box {
+  width:100%; max-width:900px; background:#0a0a18;
+  border:1px solid var(--bord); border-radius:var(--r); overflow:hidden;
+}
+.rules-header { padding:12px 18px; background:#12120a; display:flex; align-items:center; gap:10px; cursor:pointer; border-bottom:1px solid var(--bord); }
+.rules-header:hover { background:#1a1a0a; }
+.rules-title { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--gold); font-weight:700; flex:1; }
+.rules-body { display:none; padding:18px; }
+.rules-body.show { display:block; }
+.rule-item { display:flex; gap:12px; align-items:flex-start; margin-bottom:12px; padding-bottom:12px; border-bottom:1px solid var(--bord); }
+.rule-item:last-child { margin-bottom:0; padding-bottom:0; border-bottom:none; }
+.rule-num { width:28px; height:28px; border-radius:6px; background:#1a1a00; color:var(--gold); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:900; flex-shrink:0; }
+.rule-text { font-size:12.5px; line-height:1.7; color:#ccc; }
+.rule-text strong { color:var(--gold); }
+.rule-text em { color:#aaa; font-style:italic; }
+
+/* PLAN BOX */
+.plan-box { padding:10px 14px; margin-bottom:12px; background:#0a0a1a; border-radius:8px; border-left:3px solid var(--gold); display:flex; align-items:flex-start; gap:10px; }
+.plan-label { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); white-space:nowrap; padding-top:2px; }
+.plan-chain { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.plan-type { padding:2px 8px; border-radius:4px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; }
+.plan-type.fon { background:#1a2a0a; color:#8bc34a; }
+.plan-type.sig { background:#1a0a2a; color:#ce93d8; }
+.plan-parts { display:flex; gap:4px; align-items:center; flex-wrap:wrap; }
+.plan-part { padding:2px 7px; border-radius:4px; font-size:11px; font-weight:700; background:#1a1a30; color:#aaa; }
+.plan-arr { font-size:11px; color:var(--muted); }
+.plan-img { font-size:13px; font-weight:700; color:var(--gold); }
+
+/* ORDER INDICATOR */
+.order-box { padding:8px 14px; margin-bottom:12px; background:#001a00; border-radius:8px; border-left:3px solid var(--green); display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.order-label { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--green); white-space:nowrap; font-weight:700; }
+.order-chain { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.order-part { padding:3px 9px; border-radius:4px; font-size:12px; font-weight:900; border:1px solid; }
+.order-arr { font-size:14px; color:var(--green); }
+
+/* PRIMARY CARD */
+.primary-card { background:var(--card); border:2px solid var(--bord); border-radius:var(--r); overflow:hidden; }
+.primary-header { padding:16px 20px; border-bottom:1px solid var(--bord); display:flex; align-items:center; gap:12px; }
+.lv-badge { font-size:9px; letter-spacing:2px; text-transform:uppercase; padding:3px 8px; border-radius:4px; font-weight:700; white-space:nowrap; }
+.lv1 { background:#1a3050; color:var(--blue); } .lv2 { background:#0a2a18; color:var(--green); } .lv3 { background:#2a1a40; color:#bf7fff; }
+.kw-station { font-size:10px; color:var(--muted); letter-spacing:2px; text-transform:uppercase; margin-bottom:2px; }
+.kw-name { font-size:24px; font-weight:900; letter-spacing:2px; }
+.primary-body { padding:20px; }
+
+/* PAV GRID */
+.pav-grid { display:grid; grid-template-columns:38px 1fr; gap:10px 12px; margin-bottom:14px; }
+.pav-l { width:38px; height:38px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:17px; }
+.pav-l.P { background:#0d1e30; color:var(--blue); }
+.pav-l.A { background:#2a0d0d; color:var(--red); }
+.pav-l.V { background:#0d2a0d; color:var(--green); }
+.pav-col { padding-top:8px; }
+.pav-tag { font-size:9px; letter-spacing:2px; color:var(--muted); text-transform:uppercase; margin-bottom:3px; }
+.pav-txt { font-size:13.5px; line-height:1.65; color:#ddd; }
+.pav-full { background:#0a0a18; border:1px dashed #3a3a5a; border-left:3px solid var(--gold); border-radius:10px; padding:14px 18px; font-size:14px; line-height:1.8; color:#ccc; font-style:italic; }
+.pav-full strong { color:var(--gold); font-style:normal; }
+
+/* SECONDARY / TERTIARY */
+.tree-indent { padding-left:26px; border-left:2px solid #2a2a4a; margin-left:12px; margin-top:12px; display:flex; flex-direction:column; gap:12px; }
+.sec-card { background:var(--surf); border:1.5px solid var(--bord); border-radius:10px; overflow:hidden; }
+.sec-header { padding:12px 16px; display:flex; align-items:center; gap:10px; cursor:pointer; transition:background .15s; }
+.sec-header:hover { background:#1f1f38; }
+.sec-kw { font-size:16px; font-weight:900; letter-spacing:1px; flex:1; }
+.sec-station { font-size:10px; color:var(--muted); letter-spacing:1.5px; text-transform:uppercase; }
+.sec-toggle { color:var(--muted); font-size:12px; transition:transform .2s; }
+.sec-toggle.open { transform:rotate(180deg); }
+.sec-body { display:none; padding:16px; border-top:1px solid var(--bord); }
+.sec-body.show { display:block; }
+.connect { padding:8px 14px; margin-bottom:12px; background:#12120a; border:1px solid #2a2a00; border-left:3px solid var(--gold); border-radius:6px; font-size:12px; color:#bbb; font-style:italic; }
+.connect strong { color:var(--gold); font-style:normal; }
+.ter-indent { padding-left:20px; border-left:2px solid #1a1a30; margin-left:8px; margin-top:10px; display:flex; flex-direction:column; gap:10px; }
+.ter-card { background:#0f0f1e; border:1px solid var(--bord); border-radius:8px; padding:14px 16px; }
+.ter-header { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+.ter-kw { font-size:14px; font-weight:900; letter-spacing:1px; }
+.ter-station { font-size:10px; color:var(--muted); }
+
+/* SEQUENCE BOX */
+.seq-box { background:var(--surf); border:2px solid var(--gold); border-radius:var(--r); overflow:hidden; margin-top:4px; }
+.seq-header { padding:14px 20px; background:#1a1500; display:flex; align-items:center; gap:10px; cursor:pointer; border-bottom:1px solid var(--bord); }
+.seq-header:hover { background:#221c00; }
+.seq-title { font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--gold); font-weight:700; flex:1; }
+.seq-tog { color:var(--gold); font-size:12px; transition:transform .2s; }
+.seq-tog.open { transform:rotate(180deg); }
+.seq-body { display:none; padding:20px; }
+.seq-body.show { display:block; }
+.seq-film { background:#0a0a0a; border-radius:10px; padding:18px; display:flex; flex-direction:column; gap:0; }
+.seq-item { display:flex; gap:14px; align-items:flex-start; padding:14px 0; border-bottom:1px dashed #1a1a2a; }
+.seq-item:last-child { border-bottom:none; padding-bottom:0; }
+.seq-num { width:34px; height:34px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:900; }
+.seq-right { flex:1; }
+.seq-meta { display:flex; align-items:center; gap:8px; margin-bottom:5px; flex-wrap:wrap; }
+.seq-kw { font-size:14px; font-weight:900; letter-spacing:1px; }
+.seq-st { font-size:10px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; }
+.seq-pav { font-size:13.5px; line-height:1.75; color:#ccc; font-style:italic; }
+.seq-connector { text-align:center; padding:6px 0 2px; color:#2a2a4a; font-size:22px; }
+
+/* VERIFY */
+.verify-box { margin-top:16px; padding:14px 18px; background:#0a0800; border:1px solid #2a2000; border-left:3px solid var(--gold); border-radius:8px; }
+.verify-title { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--gold); margin-bottom:10px; font-weight:700; }
+.verify-row { display:flex; gap:8px; align-items:flex-start; padding:6px 0; border-bottom:1px solid #1a1800; font-size:12px; color:#aaa; }
+.verify-row:last-child { border-bottom:none; }
+.verify-arrow { color:var(--gold); font-weight:700; white-space:nowrap; }
+
+/* TEST */
+.test-wrap { width:100%; max-width:900px; display:none; flex-direction:column; gap:16px; }
+.test-wrap.show { display:flex; }
+.t-card { background:var(--card); border:1px solid var(--bord); border-radius:var(--r); overflow:hidden; }
+.t-top { padding:20px 24px; border-bottom:1px solid var(--bord); display:flex; justify-content:space-between; align-items:center; }
+.t-lbl { font-size:10px; color:var(--muted); letter-spacing:2px; text-transform:uppercase; }
+.t-station { font-size:20px; font-weight:900; color:var(--gold); }
+.t-body { padding:20px 24px; }
+.t-hint { padding:12px 16px; margin-bottom:16px; background:#0a0a18; border-radius:8px; font-size:13px; color:#777; font-style:italic; border-left:3px solid #333; }
+.t-hint strong { color:#aaa; font-style:normal; }
+.t-input { width:100%; padding:14px 18px; background:var(--surf); border:1.5px solid var(--bord); border-radius:10px; color:var(--text); font-size:18px; font-weight:800; letter-spacing:2px; text-transform:uppercase; outline:none; transition:border .2s; }
+.t-input:focus { border-color:var(--gold); }
+.t-btn { width:100%; margin-top:12px; padding:13px; background:var(--gold); border:none; border-radius:10px; font-size:13px; font-weight:900; letter-spacing:1px; color:#000; cursor:pointer; text-transform:uppercase; transition:all .18s; }
+.t-btn:hover { background:#d4920a; transform:translateY(-1px); }
+.t-fb { display:none; margin-top:10px; padding:12px 16px; border-radius:8px; font-size:13px; font-weight:700; }
+.t-fb.ok  { display:block; background:#0d2a0d; color:var(--green); border:1px solid #1a5a1a; }
+.t-fb.err { display:block; background:#2a0d0d; color:var(--red); border:1px solid #5a1a1a; }
+.score-panel { background:var(--card); border:1px solid var(--bord); border-radius:var(--r); padding:40px; text-align:center; display:none; flex-direction:column; align-items:center; gap:12px; }
+.score-panel.show { display:flex; }
+.score-num { font-size:72px; font-weight:900; color:var(--gold); }
+.score-sub { font-size:12px; color:var(--muted); letter-spacing:2px; text-transform:uppercase; }
+.restart-btn { margin-top:8px; padding:12px 36px; background:var(--gold); border:none; border-radius:10px; font-size:13px; font-weight:900; color:#000; cursor:pointer; letter-spacing:1px; text-transform:uppercase; }
+</style>
+</head>
+<body>
+
+<p class="badge">Metodo Eureka · PAV Engine v3 · Sistema Corretto</p>
+<h1>DIRITTO SOGGETTIVO</h1>
+<p class="sub">18 keyword · Ordine fonetico rispettato · PAV = Paradossale · Azione · Vivido</p>
+
+<div class="tabs">
+  <div class="tab active" onclick="setMode('learn')">🧠 Apprendi</div>
+  <div class="tab" onclick="setMode('test')">⚡ Test</div>
+</div>
+
+<!-- REGOLE DEL SISTEMA -->
+<div class="rules-box" id="rules-wrap">
+  <div class="rules-header" onclick="toggleEl('rules-body','rules-tog')">
+    <span style="font-size:16px">⚙️</span>
+    <span class="rules-title">REGOLE DEL SISTEMA PAV — leggi prima di usare</span>
+    <span class="sec-toggle" id="rules-tog">▼</span>
+  </div>
+  <div class="rules-body" id="rules-body">
+    <div class="rule-item">
+      <div class="rule-num">1</div>
+      <div class="rule-text"><strong>Classifica prima: CONCRETA o ASTRATTA.</strong><br>
+      Le parole concrete hanno già un'immagine visiva diretta — usala direttamente nel PAV.<br>
+      Le parole astratte richiedono trasformazione: scegli UNA tecnica tra FONETICA o SIGNIFICATO.
+      </div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">2</div>
+      <div class="rule-text"><strong>Tecnica unica — mai mescolare.</strong><br>
+      Per ogni keyword scegli SOLO UNA tecnica.<br>
+      <em>FONETICA: scomponi il suono della parola in parti (ESERCI/ZIO → esercito + zio)</em><br>
+      <em>SIGNIFICATO: visualizza il concetto (DOVERE → macigno che schiaccia)</em>
+      </div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">3</div>
+      <div class="rule-text"><strong>ORDINE OBBLIGATORIO — le parti fonetiche appaiono nella storia nello stesso ordine della parola.</strong><br>
+      ESERCI/ZIO → nella storia appare PRIMA l'esercito, POI lo zio emerge dall'esercito.<br>
+      Mai invertire l'ordine. Leggendo la storia in sequenza devo ricostruire la parola originale.
+      </div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">4</div>
+      <div class="rule-text"><strong>Entrambe le parti devono essere EVIDENTI e RICONOSCIBILI nella storia.</strong><br>
+      Non basta che ci siano — devono emergere come elementi visivi distinti e separati.<br>
+      <em>✅ L'esercito marcia → dallo zio in pigiama che comanda</em><br>
+      <em>❌ Lo zio scaglia soldatini (zio prima, esercito dopo — ordine invertito)</em>
+      </div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">5</div>
+      <div class="rule-text"><strong>PAV = Paradossale · Azione · Vivido</strong><br>
+      <em>P — Paradossale:</em> l'immagine è impossibile, strana, non potrebbe mai accadere<br>
+      <em>A — Azione:</em> qualcosa succede fisicamente, c'è un verbo di movimento<br>
+      <em>V — Vivido:</em> evoca emozione forte (paura, risata, macabro, violenza nei limiti)
+      </div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">6</div>
+      <div class="rule-text"><strong>Le secondarie escono dall'immagine della primaria. Le terziarie dalla secondaria.</strong><br>
+      Non sono immagini indipendenti — sono una catena dove ogni immagine genera la successiva.<br>
+      La sequenza deve essere leggibile in ordine come un film.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="zone-row" id="zone-row">
+  <div class="zone-btn z1 active" onclick="setZone(0)">
+    <span class="zone-icon">🗣️</span>
+    <span class="zone-lbl">Zona 1 · Testa</span>
+    <span class="zone-kw" style="color:var(--blue)">ESERCIZIO</span>
+  </div>
+  <div class="zone-btn z2" onclick="setZone(1)">
+    <span class="zone-icon">💪</span>
+    <span class="zone-lbl">Zona 2 · Petto</span>
+    <span class="zone-kw" style="color:var(--red)">ABUSO</span>
+  </div>
+  <div class="zone-btn z3" onclick="setZone(2)">
+    <span class="zone-icon">🦵</span>
+    <span class="zone-lbl">Zona 3 · Gambe</span>
+    <span class="zone-kw" style="color:var(--green)">CATEGORIE</span>
+  </div>
+</div>
+
+<div class="prog-wrap" id="prog-wrap">
+  <div class="prog-info">
+    <span id="prog-lbl">Zona 1 di 3</span>
+    <span id="prog-pct">33%</span>
+  </div>
+  <div class="prog-bar"><div class="prog-fill" id="prog-fill" style="width:33%"></div></div>
+</div>
+
+<div class="content" id="learn-content"></div>
+
+<div class="test-wrap" id="test-wrap">
+  <div class="t-card" id="t-card">
+    <div class="t-top">
+      <div>
+        <div class="t-lbl" id="tst-lbl">—</div>
+        <div class="t-station" id="tst-station">—</div>
+      </div>
+      <span id="tst-badge"></span>
+    </div>
+    <div class="t-body">
+      <div class="t-hint" id="tst-hint"></div>
+      <input class="t-input" id="tst-input" type="text" placeholder="KEYWORD..."
+        onkeydown="if(event.key==='Enter')checkAns()" autocomplete="off"/>
+      <button class="t-btn" onclick="checkAns()">VERIFICA →</button>
+      <div class="t-fb" id="tst-fb"></div>
+    </div>
+  </div>
+  <div class="score-panel" id="score-panel">
+    <p class="score-sub">Punteggio finale</p>
+    <div class="score-num" id="score-num">—</div>
+    <p class="score-sub" id="score-msg"></p>
+    <button class="restart-btn" onclick="startTest()">↺ RIPROVA</button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  DATI — PAV ENGINE v3
+//  REGOLA CHIAVE: nelle keyword fonetiche le parti appaiono
+//  nella storia NELLO STESSO ORDINE della parola originale.
+//
+//  Ogni nodo ha:
+//    plan.tipo  : 'fon' | 'sig'
+//    plan.parts : le parti fonetiche nell'ordine della parola
+//    plan.img   : immagine base risultante
+//    plan.order : descrizione dell'ordine in storia (solo fon)
+//    P, A, V    : le tre componenti del PAV
+//    pav        : immagine completa in una frase
+//    connect    : come questa immagine esce dalla precedente
+// ═══════════════════════════════════════════════════════════════
+
+const ZONES = [
+{
+  id:0, zoneLabel:'ZONA 1 · TESTA', color:'#2E86C1', station:'Cima della testa',
+  primary:{
+    keyword:'ESERCIZIO', color:'#2E86C1',
+    plan:{ tipo:'fon', parts:['ESERCI →','ZIO →'], img:'esercito di soldatini + zio che comanda',
+      order:'1° appare l\'ESERCITO che marcia · 2° dallo stesso esercito emerge lo ZIO' },
+    P:'Un esercito di soldatini in miniatura marcia compatto sulla cima della testa — TROMP TROMP —',
+    A:'dal plotone si stacca lo ZIO in pigiama a righe che urla ordini agitando una pantofola come una sciabola',
+    V:'i soldatini obbediscono allo zio e si conficcano nel cranio a comando — ogni ordine dello zio fa un buco in testa — TROMP CRACK TROMP CRACK',
+    pav:'L\'esercito marcia TROMP TROMP sulla testa → poi dallo stesso plotone emerge lo ZIO in pigiama che urla ordini con la pantofola → i soldatini si conficcano nel cranio a ogni suo comando.',
+    children:[
+      {
+        keyword:'REALIZZAZIONE', station:'Fronte', color:'#2471A3',
+        plan:{ tipo:'fon', parts:['RE →','ALI →','ZZA →'], img:'re con ali che romba (zzz)',
+          order:'1° appare il RE · 2° dal re spuntano le ALI · 3° le ali fanno il rumore ZZZ ronzando' },
+        connect:'Dal plotone di soldatini vola fuori la corona del RE che rimbalza sulla fronte…',
+        P:'Un RE con corona d\'oro appare sulla fronte —',
+        A:'dalla corona gli spuntano grandi ALI di gabbiano che sbattono freneticamente — ZZZZZ ronzano come un drone —',
+        V:'il re vola ronzando ZZZ sulla fronte sbattendo le ali in faccia — la corona rimbalza sul naso — il re urla "L\'HO FATTO!" mentre le ali ronzano assordanti',
+        pav:'Il RE compare sulla fronte → dalla corona spuntano ALI di gabbiano → le ali ronzano ZZZ come un drone sbattendo in faccia — "L\'HO FATTO!" urla il re volante.'
+      },
+      {
+        keyword:'DIFFERENZA', station:'Arcata sopraccigliare destra', color:'#2471A3',
+        plan:{ tipo:'sig', parts:['due opposti assoluti'], img:'camion fuoco vs camion ghiaccio in rotta di collisione',
+          order:'tecnica SIGNIFICATO: i due opposti appaiono contemporaneamente' },
+        connect:'Dalle ali del re volano via due camion opposti che si dirigono sull\'arcata destra…',
+        P:'Un camion in fiamme e un camion di ghiaccio corrono in direzioni opposte sull\'arcata —',
+        A:'si scontrano frontalmente — BOOOOM — esplosione di vapore bollente e ghiaccio',
+        V:'metà arcata è carbone nero bruciato, metà è ghiaccio blu — i due autisti escono dai rottami urlando "NOI SIAMO OPPOSTI!" — il sopracciglio è spaccato in due',
+        pav:'Camion fuoco e camion ghiaccio si scontrano sull\'arcata — BOOOOM — metà sopracciglio carbone nero, metà ghiaccio blu — "SIAMO OPPOSTI!" urlano i rottami.'
+      },
+      {
+        keyword:'COATTIVA', station:'Occhio destro', color:'#2471A3',
+        plan:{ tipo:'fon', parts:['CO →','AT →'], img:'cappotto (coat) che si attiva da solo',
+          order:'1° appare il CAPPOTTO (coat=CO) · 2° il cappotto si ATTIVA da solo (AT)' },
+        connect:'Dall\'esplosione vola fuori un cappotto di ferro —',
+        P:'Un cappotto di ferro pesantissimo (COAT) atterra davanti all\'occhio destro —',
+        A:'si ATTIVA da solo aprendo le braccia di ferro e rinchiude l\'occhio dentro — CLANG — come uno scrigno che si chiude',
+        V:'l\'occhio è intrappolato nel ferro attivato — buio totale — freddo metallico sul bulbo — il cappotto fischia soddisfatto mentre l\'occhio scalcia inutilmente',
+        pav:'Il CAPPOTTO di ferro atterra → si ATTIVA aprendo le braccia — CLANG — rinchiude l\'occhio dentro: buio totale, freddo metallico, il cappotto fischia soddisfatto.'
+      },
+      {
+        keyword:'NEMINEM LAEDIT', station:'Orecchio sinistro', color:'#2471A3',
+        plan:{ tipo:'fon', parts:['NE →','MI →','NEM →'], img:'Eminem (NE-MI-NEM) in toga',
+          order:'1° NE · 2° MI · 3° NEM: le tre sillabe costruiscono il nome EMINEM che appare progressivamente' },
+        connect:'Dal cappotto di ferro esce una voce: NE — poi MI — poi NEM: Eminem in toga romana —',
+        P:'Eminem appare progressivamente: prima una "NE" scritta nell\'aria, poi "MI", poi "NEM" completa il nome — compare in toga romana —',
+        A:'rappa dentro l\'orecchio sinistro rimbalzando sulle pareti con guanti di velluto bianco — la toga esplode ad ogni beat',
+        V:'la toga va in pezzi ma i guanti di velluto non toccano niente — urla "HO FATTO TUTTO MA NON HO TOCCATO NESSUNO!" — sparisce lasciando solo i guanti nell\'orecchio',
+        pav:'NE… MI… NEM: Eminem compare in toga → rappa nell\'orecchio con guanti di velluto — toga in pezzi ma non tocca niente → "HO FATTO TUTTO, NESSUNO!" — restano solo i guanti.'
+      }
+    ]
+  }
+},
+{
+  id:1, zoneLabel:'ZONA 2 · PETTO', color:'#E74C3C', station:'Sterno',
+  primary:{
+    keyword:'ABUSO', color:'#E74C3C',
+    plan:{ tipo:'sig', parts:['uso forzato di ciò che appartiene ad altri'], img:'ladro usa il TUO strumento contro di te',
+      order:'tecnica SIGNIFICATO: l\'oggetto riconoscibile come TUO è centrale' },
+    P:'Un ladro con la TUA borsa, il TUO cappotto, il TUO martello — tutto riconoscibilmente tuo —',
+    A:'usa il TUO martello per colpire il tuo sterno — DONG DONG — ride mentre ti colpisce con la tua roba',
+    V:'ad ogni colpo dal tuo sterno escono monete con la tua faccia — il ladro le raccoglie tutte — lo sterno suona come una campana DONG con ogni botta',
+    pav:'Il ladro usa il TUO martello per colpirti lo sterno — DONG — ad ogni botta escono monete con la tua faccia che lui raccoglie ridendo. Lo sterno suona come una campana.',
+    children:[
+      {
+        keyword:'BUONA FEDE', station:'Spalla sinistra', color:'#CB4335',
+        plan:{ tipo:'sig', parts:['fede = anello nuziale che porta fiducia cieca'], img:'anello nuziale enorme come hula hoop che illumina',
+          order:'tecnica SIGNIFICATO: l\'anello (fede) è il fulcro dell\'immagine' },
+        connect:'Dalla bocca del ladro cadono le monete e tra esse rotola un anello nuziale enorme come un hula hoop —',
+        P:'Un anello nuziale di diamante grande come un hula hoop rotola sulla spalla sinistra —',
+        A:'la schiaccia verso il basso per il peso enorme — dalla pietra di diamante emana luce bianca abbagliante in tutte le direzioni',
+        V:'chiunque sia illuminato dalla luce si fida ciecamente di te senza motivo — anche chi non ti conosce — la luce è così forte che ti acceca anche tu mentre credi in tutto',
+        pav:'Anello-hula hoop di diamante schiaccia la spalla sinistra → emana luce bianca abbagliante: chiunque sia colpito si fida ciecamente — persino tu resti accecato dalla tua stessa luce.'
+      },
+      {
+        keyword:'EXCEPTIO DOLI', station:'Spalla destra', color:'#CB4335',
+        plan:{ tipo:'fon', parts:['EX →','CEPTIO →','DOLI →'], img:'ex-qualcosa che ceppa (blocca) i dolci-trappola',
+          order:'1° EX (qualcosa che viene da fuori/prima) · 2° CEPTIO (blocco/intercetta) · 3° DOLI (dolci come esca/trappola)' },
+        connect:'Dalla luce dell\'anello arriva dall\'esterno (EX) una rete —',
+        P:'Una rete (EX-terna) arriva e INTERCETTA (CEPTIO) una montagna di DOLCI (DOLI) trappola —',
+        A:'i dolci sembravano un\'esca innocente ma la rete li blocca sulla spalla destra prima che qualcuno li tocchi',
+        V:'la montagna di dolci è bloccata dalla rete — i ganci nascosti dentro i cioccolatini scattano nell\'aria inutilmente — la spalla è salva — la trappola smascherata',
+        pav:'Rete esterna (EX) intercetta (CEPTIO) la montagna di dolci-trappola (DOLI) sulla spalla destra: i ganci nei cioccolatini scattano nell\'aria — smascherata.'
+      },
+      {
+        keyword:'DIPENDENZA', station:'Polso sinistro', color:'#CB4335',
+        plan:{ tipo:'fon', parts:['DI →','PENDE →','NZA →'], img:'penna che pende con forza (NZA = peso)',
+          order:'1° DI (da/verso il basso) · 2° PENDE (la penna che pende) · 3° NZA (onomatopea del peso che tira)' },
+        connect:'Dalla montagna di dolci emerge una penna stilografica gigante —',
+        P:'Una penna stilografica enorme cade DI sotto — PENDE — trascinando il polso sinistro verso il basso —',
+        A:'il polso scende sempre più — NZA NZA — come se la penna pesasse tonnellate — la mano sprofonda nel pavimento',
+        V:'il polso è 30cm sotto il suolo — la mano sparisce — la penna oscilla pesante DI-PENDE-NZA DI-PENDE-NZA — impossibile risalire',
+        pav:'La penna cade DI sotto e PENDE dal polso — NZA NZA — il polso sprofonda 30cm nel pavimento, la mano sparisce: DI-PENDE-NZA DI-PENDE-NZA oscillando.'
+      },
+      {
+        keyword:'DOMINANTE', station:'Petto (centro)', color:'#CB4335',
+        plan:{ tipo:'fon', parts:['DOMI →','NAN →','TE →'], img:'tessere DOMINO + nonNO (NAN) + TE (tu)',
+          order:'1° DOMINO (tessere che abbattono) · 2° NAN = nonno con bastone · 3° TE = ti punta contro' },
+        connect:'Dalla penna che pende cadono tessere del domino alte come palazzi sul petto —',
+        P:'Tessere del DOMINO alte come condomini cadono in sequenza sul petto — CLAC CLAC —',
+        A:'dal domino che crolla esce il NONNO (NAN) con bastone che punta il dito verso TE — CLAC — ogni tessera abbatte qualcosa',
+        V:'il domino abbatte tutto a 360 gradi — il nonno al centro tiene fermo il bastone puntato — "TU non puoi sfuggire!" urla — il petto è il campo di battaglia',
+        pav:'DOMINO gigante cade CLAC CLAC abbattendo tutto → dal crollo emerge il NONNO con bastone puntato verso TE: "Non puoi sfuggire!" urla mentre il petto è devastato.'
+      }
+    ]
+  }
+},
+{
+  id:2, zoneLabel:'ZONA 3 · GAMBE', color:'#27AE60', station:'Ginocchia',
+  primary:{
+    keyword:'CATEGORIE', color:'#27AE60',
+    plan:{ tipo:'fon', parts:['KATE →','GORI →','E →'], img:'Kate + gorilla che classifica',
+      order:'1° KATE (principessa) · 2° GORI (gorilla) · 3° E (finale: etichetta tutto)' },
+    P:'KATE Middleton con corona appare sulle ginocchia —',
+    A:'si siede a cavalcioni su un GORILLA sbavante che corre sulle ginocchia aprendo cassetti a calci — poi Kate timbra (E!) ogni cassetto con pistola sparaetichette',
+    V:'il gorilla sbava sui cassetti colorati — Kate urla "E! E! E!" ad ogni timbro — CLACK CLACK — le ginocchia vibrano ad ogni calcio del gorilla',
+    pav:'KATE con corona → si siede su un GORILLA sbavante che sfonda cassetti a calci → Kate timbra tutto "E! E!" CLACK CLACK: le ginocchia vibrano ad ogni impatto.',
+    children:[
+      {
+        keyword:'ASSOLUTI', station:'Coscia destra', color:'#1E8449',
+        plan:{ tipo:'fon', parts:['ASSO →','LUTI →'], img:'asso di carte che emette luce (luce = LUTI)',
+          order:'1° ASSO (carta) appare · 2° dall\'asso emana LUCE in tutte le direzioni (LUTI → luce)' },
+        connect:'Dal cassetto BLU del gorilla vola un asso di picche enorme —',
+        P:'Un ASSO di picche grande come un portone si pianta nella coscia destra —',
+        A:'dall\'asso emana LUCE (LUTI) in tutte le direzioni simultaneamente — laser bianchi verso ogni angolo possibile',
+        V:'i laser colpiscono tutto nel raggio di chilometri senza eccezioni — la coscia brucia per il calore — nessuno si salva — l\'asso pulsa di luce LUTI-LUTI-LUTI',
+        pav:'ASSO-portone si pianta nella coscia → emana LUCE (LUTI) laser in tutte le direzioni: tutto brucia nel raggio di km, nessuno si salva — la coscia pulsa LUTI-LUTI.',
+        children:[
+          {
+            keyword:'REALI', station:'Ginocchio destro', color:'#239B56',
+            plan:{ tipo:'fon', parts:['RE →','ALI →'], img:'re con ali che rivendica territorio',
+              order:'1° RE (sovrano) appare · 2° dal re spuntano le ALI con cui vola a rivendicare' },
+            connect:'Dall\'asso escono raggi di luce che formano un RE —',
+            P:'Un RE con corona emerge dai laser dell\'asso —',
+            A:'dalla corona spuntano grandi ALI di aquila con cui vola frenetico attorno al ginocchio destro piantando bandierine ovunque',
+            V:'le ali fanno solletico sul ginocchio — ridi involontariamente — il re urla "MIO! MIO! MIO!" piantando 50 bandierine al secondo mentre le ali sbattono',
+            pav:'RE emerge dai laser → spuntano ALI di aquila → vola frenetico sul ginocchio piantando bandierine "MIO! MIO!" mentre le ali fanno solletico — ridi senza volerlo.'
+          },
+          {
+            keyword:'PERSONALITÀ', station:'Rotula destra', color:'#239B56',
+            plan:{ tipo:'sig', parts:['identità unica irripetibile visibile a tutti'], img:'maschera carnevalesca che brucia restando intatta',
+              order:'tecnica SIGNIFICATO: la maschera unica è il fulcro' },
+            connect:'Dalle bandierine del re appare una maschera carnevalesca —',
+            P:'Una maschera carnevalesca con fattezze uniche e irripetibili si stampa sulla rotula destra —',
+            A:'prende fuoco istantaneamente — FIAMME — brucia intensamente',
+            V:'la maschera brucia ma rimane perfettamente intatta e riconoscibile — impossibile distruggerla — impossibile copiarla — la rotula pulsa di luce propria anche tra le fiamme',
+            pav:'Maschera unica si stampa sulla rotula → prende fuoco FIAMME → brucia ma resta intatta e irripetibile: la rotula pulsa di luce propria — niente può cancellarla.'
+          },
+          {
+            keyword:'DOVERE', station:'Tibia destra', color:'#239B56',
+            plan:{ tipo:'sig', parts:['obbligo impossibile da ignorare che schiaccia verso il basso'], img:'macigno con DEVI inciso che sprofonda la tibia',
+              order:'tecnica SIGNIFICATO: il peso fisico dell\'obbligo è l\'immagine' },
+            connect:'Dal fuoco della maschera cade un macigno di marmo nero —',
+            P:'Un macigno di marmo nero con DEVI inciso in rosso fuoco atterra sulla tibia destra —',
+            A:'la spinge 30cm sotto il pavimento — CRACK — le lettere DEVI bruciano rosse anche al buio',
+            V:'la tibia sprofonda nel suolo — il macigno incatenato con oro impossibile da togliere — le lettere rosse DEVI bruciano visibili da lontano — la gamba non può muoversi',
+            pav:'Macigno con DEVI rosso incandescente spinge la tibia 30cm sotto terra — CRACK — incatenato con oro: DEVI brucia nel buio, la gamba è sepolta, impossibile muoversi.'
+          }
+        ]
+      },
+      {
+        keyword:'RELATIVI', station:'Coscia sinistra', color:'#1E8449',
+        plan:{ tipo:'fon', parts:['RE →','LATI →'], img:'re che vede solo i due LATI',
+          order:'1° RE (sovrano meccanico) appare · 2° il re guarda solo i LATI destra e sinistra' },
+        connect:'Dal cassetto ROSSO del gorilla emerge un re meccanico —',
+        P:'Un RE con testa meccanica che ruota come un ventilatore siede sulla coscia sinistra —',
+        A:'la testa gira solo a destra e sinistra (LATI) — davanti e dietro esistono barriere di vetro spesse invalicabili',
+        V:'il re vede solo ciò che è ai suoi LATI — il resto del mondo non esiste — la testa-ventilatore ronza — le barriere di vetro sono indistruttibili — tutto fuori dai lati è invisibile',
+        pav:'RE meccanico siede sulla coscia → la testa ruota solo verso i LATI destra/sinistra — barriere di vetro davanti e dietro: solo i lati esistono. Ronza senza sosta.',
+        children:[
+          {
+            keyword:'OBBLIGO', station:'Ginocchio sinistro', color:'#239B56',
+            plan:{ tipo:'fon', parts:['OB →','BLIGO →'], img:'oggetto OBliquo (ob) che lega (ligo=legare)',
+              order:'1° OB: qualcosa di obliquo/storto appare · 2° BLIGO: questo qualcosa lega e trascina' },
+            connect:'Dal re meccanico parte una corda storta obliqua —',
+            P:'Una corda OBLIQUA (OB) storta come un serpente irritato appare —',
+            A:'LEGA (BLIGO) il ginocchio sinistro in diagonale stringendo sempre più — SSSS — il ginocchio è piegato storto',
+            V:'cammini come un granchio con la gamba storta — la corda sibila SSSS stringendo — ogni passo è obliquo e impossibile da raddrizzare — OB-BLIGO OB-BLIGO sibila la corda',
+            pav:'Corda OBLIQUA (OB) appare → LEGA (BLIGO) il ginocchio in diagonale — SSSS — la gamba è storta: cammini come un granchio, OB-BLIGO OB-BLIGO sibila la corda.'
+          }
+        ]
+      },
+      {
+        keyword:'POTESTATIVI', station:'Polpaccio destro', color:'#1E8449',
+        plan:{ tipo:'fon', parts:['PO →','TE →','STAT →'], img:'POtere che colpisce TE e cambia lo STATo',
+          order:'1° PO (potere) emerge · 2° TE (tu/bersaglio) · 3° STAT (stato che cambia)' },
+        connect:'Dal cassetto VERDE il gorilla estrae un martello viola —',
+        P:'Un martello di POTERE (PO) viola gigante appare sul polpaccio —',
+        A:'colpisce TE (il polpaccio) — BANG — ogni colpo cambia lo STATO (STAT) di tutto ciò che tocca',
+        V:'il polpaccio cambia forma ad ogni BANG: rotondo, quadrato, trasparente, invisibile — PO-TE-STAT PO-TE-STAT — il martello trasforma la realtà ad ogni colpo',
+        pav:'Martello di POTERE (PO) colpisce TE (polpaccio) — BANG — cambia lo STATO (STAT) di tutto: rotondo, quadrato, trasparente — PO-TE-STAT ad ogni colpo trasforma.',
+        children:[
+          {
+            keyword:'SOGGEZIONE', station:'Piede destro', color:'#239B56',
+            plan:{ tipo:'fon', parts:['SOGG →','EZIONE →'], img:'SOGGetto (omino) la cui AZIONE si congela',
+              order:'1° SOGG: appare l\'omino-soggetto · 2° EZIONE: la sua azione si congela nel ghiaccio' },
+            connect:'Dal martello viola escono raggi di ghiaccio —',
+            P:'Un omino trasparente (SOGG = soggetto) appare sul piede destro e prova ad AGIRE (EZIONE) —',
+            A:'il ghiaccio si forma attorno a lui in mezzo secondo congelando la sua AZIONE a metà — l\'omino è bloccato in posizione di movimento',
+            V:'l\'omino è visibile dentro il cristallo con la gamba alzata a metà passo — l\'AZIONE è congelata — vede tutto, sente tutto, non può finire nessuna azione — subisce in silenzio per sempre',
+            pav:'Omino-SOGGETTO (SOGG) prova ad agire (EZIONE) → ghiaccio congela la sua AZIONE a metà: bloccato con gamba alzata nel cristallo — vede tutto, non può finire niente.'
+          }
+        ]
+      }
+    ]
+  }
+}
+];
+
+// ═══════════════════════════════════════════════════════════
+//  RENDER ENGINE
+// ═══════════════════════════════════════════════════════════
+let currentZone=0, mode='learn';
+
+function planHTML(plan, color) {
+  const tipo = plan.tipo==='fon'
+    ? '<span class="plan-type fon">FONETICA</span>'
+    : '<span class="plan-type sig">SIGNIFICATO</span>';
+  const parts = plan.parts.map(p=>`<span class="plan-part">${p}</span>`).join('');
+  const orderNote = plan.order ? `<div style="font-size:11px;color:#666;margin-top:6px;line-height:1.5">📐 ${plan.order}</div>` : '';
+  return `
+  <div class="plan-box">
+    <span class="plan-label">Piano</span>
+    <div style="flex:1">
+      <div class="plan-chain">${tipo} <span class="plan-arr">→</span> <div class="plan-parts">${parts}</div> <span class="plan-arr">→</span> <span class="plan-img">🖼 ${plan.img}</span></div>
+      ${orderNote}
+    </div>
+  </div>`;
+}
+
+function orderHTML(plan, color) {
+  if (plan.tipo !== 'fon') return '';
+  const rawParts = plan.parts.map(p => p.replace(' →','').replace('→','').trim());
+  const partsHTML = rawParts.map((p,i) =>
+    `<span class="order-part" style="background:${color}18;color:${color};border-color:${color}44">${i+1}° ${p}</span>
+     ${i<rawParts.length-1?'<span class="order-arr">→</span>':''}`
+  ).join('');
+  return `
+  <div class="order-box">
+    <span class="order-label">Ordine storia</span>
+    <div class="order-chain">${partsHTML}</div>
+  </div>`;
+}
+
+function pavGrid(P,A,V){
+  return `
+  <div class="pav-grid">
+    <div class="pav-l P">P</div>
+    <div class="pav-col"><div class="pav-tag">Paradossale — strana, impossibile</div><div class="pav-txt">${P}</div></div>
+    <div class="pav-l A">A</div>
+    <div class="pav-col"><div class="pav-tag">Azione — cosa succede fisicamente</div><div class="pav-txt">${A}</div></div>
+    <div class="pav-l V">V</div>
+    <div class="pav-col"><div class="pav-tag">Vivido — emozione forte</div><div class="pav-txt">${V}</div></div>
+  </div>`;
+}
+
+function flatZone(z) {
+  const seq=[];
+  const pr=z.primary;
+  seq.push({keyword:pr.keyword,station:z.station,color:z.color,pav:pr.pav,level:'PRIMARIA'});
+  for(const c of pr.children||[]){
+    seq.push({keyword:c.keyword,station:c.station,color:c.color,pav:c.pav,level:'SECONDARIA'});
+    for(const t of c.children||[])
+      seq.push({keyword:t.keyword,station:t.station,color:t.color,pav:t.pav,level:'TERZIARIA'});
+  }
+  return seq;
+}
+
+function seqHTML(z) {
+  const seq=flatZone(z);
+  const sid='seq_'+z.id;
+  const lv={'PRIMARIA':'lv1','SECONDARIA':'lv2','TERZIARIA':'lv3'};
+  let items='';
+  seq.forEach((s,i)=>{
+    items+=`
+    <div class="seq-item">
+      <div class="seq-num" style="background:${s.color}22;color:${s.color}">${i+1}</div>
+      <div class="seq-right">
+        <div class="seq-meta">
+          <span class="lv-badge ${lv[s.level]}">${s.level}</span>
+          <span class="seq-kw" style="color:${s.color}">${s.keyword}</span>
+          <span class="seq-st">· ${s.station}</span>
+        </div>
+        <div class="seq-pav">${s.pav}</div>
+      </div>
+    </div>`;
+    if(i<seq.length-1) items+=`<div class="seq-connector">↓</div>`;
+  });
+  const verify=seq.slice(0,-1).map((s,i)=>{
+    const next=seq[i+1];
+    return `<div class="verify-row"><span class="verify-arrow">${s.keyword} → ${next.keyword}:</span><span>l'immagine di <strong style="color:${s.color}">${s.keyword}</strong> deve generare o contenere l'immagine di <strong style="color:${next.color}">${next.keyword}</strong></span></div>`;
+  }).join('');
+  return `
+  <div class="seq-box">
+    <div class="seq-header" onclick="toggleEl('${sid}','stog_${sid}')">
+      <span style="font-size:18px">🎬</span>
+      <span class="seq-title">SEQUENZA COMPLETA — ${z.zoneLabel} · ${seq.length} immagini in ordine</span>
+      <span class="seq-tog" id="stog_${sid}">▼</span>
+    </div>
+    <div class="seq-body" id="${sid}">
+      <div class="seq-film">${items}</div>
+      <div class="verify-box">
+        <div class="verify-title">✅ VERIFICA CONNESSIONI — ogni immagine deve generare la successiva</div>
+        ${verify}
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderTer(ter) {
+  return `
+  <div class="ter-card">
+    <div class="ter-header">
+      <span class="lv-badge lv3">Terziaria</span>
+      <span class="ter-kw" style="color:${ter.color}">${ter.keyword}</span>
+      <span class="ter-station">· ${ter.station}</span>
+    </div>
+    ${planHTML(ter.plan, ter.color)}
+    ${orderHTML(ter.plan, ter.color)}
+    <div class="connect"><strong>🔗 Collegamento:</strong> ${ter.connect}</div>
+    ${pavGrid(ter.P,ter.A,ter.V)}
+    <div class="pav-full">🎬 <strong>SEQUENZA:</strong><br>${ter.pav}</div>
+  </div>`;
+}
+
+function renderSec(sec, parentColor) {
+  const sid='sec_'+sec.keyword.replace(/\W/g,'_');
+  let inner=`
+    ${planHTML(sec.plan, sec.color)}
+    ${orderHTML(sec.plan, sec.color)}
+    <div class="connect"><strong>🔗 Collegamento dalla primaria:</strong> ${sec.connect}</div>
+    ${pavGrid(sec.P,sec.A,sec.V)}
+    <div class="pav-full">🎬 <strong>SEQUENZA:</strong><br>${sec.pav}</div>`;
+  if(sec.children?.length)
+    inner+=`<div class="ter-indent">${sec.children.map(renderTer).join('')}</div>`;
+  return `
+  <div style="padding-left:24px;border-left:2px solid ${parentColor}44;margin-left:10px">
+    <div class="sec-card">
+      <div class="sec-header" onclick="toggleEl('${sid}','tog_${sid}')">
+        <span class="lv-badge lv2">Secondaria</span>
+        <div style="flex:1">
+          <div class="sec-station">${sec.station}</div>
+          <div class="sec-kw" style="color:${sec.color}">${sec.keyword}</div>
+        </div>
+        <span class="sec-toggle" id="tog_${sid}">▼</span>
+      </div>
+      <div class="sec-body" id="${sid}">${inner}</div>
+    </div>
+  </div>`;
+}
+
+function renderLearn() {
+  const z=ZONES[currentZone], pr=z.primary;
+  const html=`
+  <div class="primary-card" style="border-color:${z.color}55">
+    <div class="primary-header" style="border-color:${z.color}33">
+      <span class="lv-badge lv1">Primaria · ${z.zoneLabel}</span>
+      <div style="flex:1">
+        <div class="kw-station">${z.station}</div>
+        <div class="kw-name" style="color:${z.color}">${pr.keyword}</div>
+      </div>
+    </div>
+    <div class="primary-body">
+      ${planHTML(pr.plan, z.color)}
+      ${orderHTML(pr.plan, z.color)}
+      ${pavGrid(pr.P,pr.A,pr.V)}
+      <div class="pav-full">🎬 <strong>SEQUENZA:</strong><br>${pr.pav}</div>
+    </div>
+  </div>
+  <div class="tree-indent">${(pr.children||[]).map(c=>renderSec(c,z.color)).join('')}</div>
+  ${seqHTML(z)}`;
+
+  document.getElementById('learn-content').innerHTML=html;
+  document.querySelectorAll('.zone-btn').forEach((b,i)=>b.classList.toggle('active',i===currentZone));
+  const pct=Math.round(((currentZone+1)/ZONES.length)*100);
+  document.getElementById('prog-lbl').textContent=`Zona ${currentZone+1} di ${ZONES.length}`;
+  document.getElementById('prog-pct').textContent=pct+'%';
+  document.getElementById('prog-fill').style.width=pct+'%';
+}
+
+// ═══════════════════════════════════════════════════════════
+//  TEST
+// ═══════════════════════════════════════════════════════════
+function flatAll(){
+  const list=[];
+  for(const z of ZONES){
+    list.push({keyword:z.primary.keyword,station:z.station,zoneLabel:z.zoneLabel,color:z.color,hint:z.primary.pav,level:'PRIMARIA'});
+    for(const c of z.primary.children||[]){
+      list.push({keyword:c.keyword,station:c.station,zoneLabel:z.zoneLabel,color:c.color,hint:c.pav,level:'SECONDARIA'});
+      for(const t of c.children||[])
+        list.push({keyword:t.keyword,station:t.station,zoneLabel:z.zoneLabel,color:t.color,hint:t.pav,level:'TERZIARIA'});
+    }
+  }
+  return list;
+}
+
+let tList=[],tIdx=0,tScore=0;
+function startTest(){
+  tList=shuffle(flatAll());tIdx=0;tScore=0;
+  document.getElementById('score-panel').classList.remove('show');
+  document.getElementById('t-card').style.display='block';
+  renderTest();
+}
+function renderTest(){
+  if(tIdx>=tList.length){showScore();return;}
+  const d=tList[tIdx];
+  document.getElementById('tst-lbl').textContent=d.zoneLabel+' · '+d.level;
+  document.getElementById('tst-station').textContent=d.station;
+  document.getElementById('tst-badge').innerHTML=`<span class="lv-badge ${d.level==='PRIMARIA'?'lv1':d.level==='SECONDARIA'?'lv2':'lv3'}">${d.level}</span>`;
+  document.getElementById('tst-hint').innerHTML=`💡 <strong>Immagine PAV:</strong> ${d.hint}`;
+  document.getElementById('tst-input').value='';
+  document.getElementById('tst-fb').className='t-fb';
+  document.getElementById('tst-input').focus();
+  const pct=Math.round((tIdx/tList.length)*100);
+  document.getElementById('prog-lbl').textContent=`Domanda ${tIdx+1} di ${tList.length}`;
+  document.getElementById('prog-pct').textContent=pct+'%';
+  document.getElementById('prog-fill').style.width=pct+'%';
+}
+function checkAns(){
+  const d=tList[tIdx];
+  const ans=document.getElementById('tst-input').value.toUpperCase().trim();
+  const ok=d.keyword.toUpperCase();
+  const fb=document.getElementById('tst-fb');
+  const correct=ans===ok||(ans.length>3&&ok.startsWith(ans));
+  if(correct){tScore++;fb.textContent='✓ Corretto!';fb.className='t-fb ok';}
+  else{fb.textContent='✗ Era: '+ok;fb.className='t-fb err';}
+  tIdx++;
+  setTimeout(()=>{if(tIdx>=tList.length)showScore();else renderTest();},1100);
+}
+function showScore(){
+  document.getElementById('t-card').style.display='none';
+  document.getElementById('score-panel').classList.add('show');
+  document.getElementById('score-num').textContent=`${tScore}/${tList.length}`;
+  const pct=Math.round(tScore/tList.length*100);
+  document.getElementById('score-msg').textContent=pct>=80?'🏆 Eccellente!':pct>=60?'👍 Buono — riprova!':'💪 Il metodo funziona — continua!';
+}
+
+// ═══════════════════════════════════════════════════════════
+//  UTILS
+// ═══════════════════════════════════════════════════════════
+function setMode(m){
+  mode=m;
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['learn','test'][i]===m));
+  document.getElementById('learn-content').style.display=m==='learn'?'flex':'none';
+  document.getElementById('zone-row').style.display=m==='learn'?'flex':'none';
+  document.getElementById('rules-wrap').style.display=m==='learn'?'block':'none';
+  document.getElementById('test-wrap').classList.toggle('show',m==='test');
+  if(m==='test')startTest();
+}
+function setZone(i){currentZone=i;renderLearn();}
+function toggleEl(bodyId,togId){
+  document.getElementById(bodyId).classList.toggle('show');
+  document.getElementById(togId).classList.toggle('open');
+}
+function shuffle(a){const r=[...a];for(let i=r.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[r[i],r[j]]=[r[j],r[i]];}return r;}
+
+renderLearn();
+</script>
+</body>
+</html>

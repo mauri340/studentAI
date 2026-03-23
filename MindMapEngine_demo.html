@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mind Map Engine — Metodo Eureka</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #F2EFE4;
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 24px 16px 40px;
+    gap: 20px;
+  }
+  header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  header h1 {
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: #aaa;
+    text-transform: uppercase;
+  }
+  header h2 {
+    font-size: 15px;
+    letter-spacing: 1.5px;
+    color: #444;
+    font-weight: 600;
+  }
+  #map-container {
+    width: 100%;
+    max-width: 1100px;
+    background: #FEFCF0;
+    border-radius: 12px;
+    box-shadow: 0 4px 32px rgba(0,0,0,0.08);
+    overflow: hidden;
+  }
+  .nota {
+    max-width: 1100px;
+    width: 100%;
+    padding: 13px 20px;
+    background: #FFF9E6;
+    border-left: 4px solid #F0A500;
+    border-radius: 6px;
+    font-size: 12.5px;
+    color: #7A4F00;
+    line-height: 1.65;
+  }
+  .nota strong { font-weight: 700; }
+
+  /* ── API DEMO PANEL ── */
+  .panel {
+    width: 100%;
+    max-width: 1100px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 18px rgba(0,0,0,0.06);
+    padding: 22px 26px;
+  }
+  .panel h3 {
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #888;
+    margin-bottom: 16px;
+  }
+  .api-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 700px) { .api-grid { grid-template-columns: 1fr; } }
+  label { font-size: 11px; color: #666; letter-spacing: 1px; text-transform: uppercase; display: block; margin-bottom: 5px; }
+  input, select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1.5px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 13px;
+    background: #fafafa;
+    color: #333;
+    outline: none;
+    transition: border .15s;
+  }
+  input:focus, select:focus { border-color: #7D3C98; }
+  button {
+    margin-top: 18px;
+    padding: 11px 28px;
+    background: #2C0246;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: background .15s, transform .1s;
+  }
+  button:hover { background: #4A235A; transform: translateY(-1px); }
+  button:active { transform: translateY(0); }
+  .hint {
+    margin-top: 10px;
+    font-size: 10.5px;
+    color: #bbb;
+    letter-spacing: 0.3px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Metodo Eureka · Apprendimento Rapido</h1>
+  <h2>MIND MAP ENGINE</h2>
+</header>
+
+<!-- MAPPA -->
+<div id="map-container"></div>
+
+<!-- NOTA -->
+<div class="nota">
+  ✏ &nbsp;<strong>COMPLETA LA MAPPA CON I VISUAL:</strong>&nbsp;
+  per ogni parola chiave disegna un'immagine creativa personale
+  <strong>sopra la keyword stessa</strong>, direttamente sul ramo.
+  Il visual — anche semplice o "brutto" — è l'ancora mnemonica
+  che trasforma la parola in un ricordo permanente.
+  Più è personale e originale, più è efficace.
+</div>
+
+<!-- PANNELLO DEMO -->
+<div class="panel">
+  <h3>Prova il motore — cambia i parametri</h3>
+  <div class="api-grid">
+    <div>
+      <label>Titolo nodo centrale</label>
+      <input id="inp-title" value="DIRITTO&#10;SOGGETTIVO" />
+    </div>
+    <div>
+      <label>Icona centrale</label>
+      <select id="inp-icon">
+        <option value="scales">Bilancia (scales)</option>
+        <option value="book">Libro (book)</option>
+        <option value="brain">Cervello (brain)</option>
+        <option value="none">Nessuna</option>
+      </select>
+    </div>
+    <div>
+      <label>Sfondo mappa</label>
+      <input id="inp-bg" type="color" value="#FEFCF0" style="height:38px;padding:4px;" />
+    </div>
+    <div>
+      <label>Angolo di partenza (ore 1 = 60°)</label>
+      <input id="inp-start" type="number" value="60" min="0" max="360" />
+    </div>
+  </div>
+  <button onclick="rerender()">↺ AGGIORNA MAPPA</button>
+  <p class="hint">Il motore ricalcola automaticamente spicchi, angoli e posizioni in base ai dati.</p>
+</div>
+
+<!-- ENGINE -->
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  MIND MAP ENGINE — Metodo Eureka
+//  Versione: 1.0
+// ═══════════════════════════════════════════════════════════════
+class MindMapEngine {
+
+  static DEFAULTS = {
+    width:        1300,
+    height:       1300,
+    background:   '#FEFCF0',
+    startAngle:   60,
+    radii:        [0, 210, 415, 585],
+    strokeWidths: [0,   9,   5,  2.8],
+    fontSizes:    [0,  16,  12, 10.5],
+    ellipseRX:    95,
+    ellipseRY:    65,
+    centerFill:   '#2C0246',
+    centerStroke: '#7D3C98',
+    sliceFan:     44,
+    leafFan:      20,
+    labelOffset:  0.60,
+    haloWidth:    6,
+    startColor:   '#F0A500',
+  };
+
+  constructor(container, data, opts = {}) {
+    this.container = typeof container === 'string'
+      ? document.querySelector(container) : container;
+    this.data   = data;
+    this.cfg    = { ...MindMapEngine.DEFAULTS, ...opts };
+    this.NS     = 'http://www.w3.org/2000/svg';
+    this._nodes = [];
+    this._map   = {};
+  }
+
+  render() {
+    this.container.innerHTML = '';
+    this.svg = this._el('svg', {
+      viewBox: `0 0 ${this.cfg.width} ${this.cfg.height}`,
+      xmlns: this.NS,
+      style: 'width:100%;height:auto;display:block;'
+    });
+    this.container.appendChild(this.svg);
+    this.CX = this.cfg.width  / 2;
+    this.CY = this.cfg.height / 2;
+
+    this._buildNodes();
+    this._drawBg();
+    this._drawSliceDividers();
+    this._drawGuideRings();
+    this._drawBranches();
+    this._drawCenter();
+    this._drawStart();
+    return this;
+  }
+
+  // ── NODE BUILDER ────────────────────────────────────────────
+  _buildNodes() {
+    this._nodes = []; this._map = {};
+    const bs    = this.data.branches;
+    const n     = bs.length;
+    const slice = 360 / n;
+
+    bs.forEach((b, i) => {
+      const angle = this.cfg.startAngle - i * slice;
+      const pNode = this._addNode(null, b.label, angle, b.color, 1, null, i === 0);
+
+      if (b.children?.length) {
+        const sa = this._fan(angle, b.children.length, this.cfg.sliceFan);
+        b.children.forEach((c, j) => {
+          const sNode = this._addNode(pNode.id, c.label, sa[j],
+            c.color || b.color, 2, pNode.id, false);
+
+          if (c.children?.length) {
+            const ta = this._fan(sa[j], c.children.length, this.cfg.leafFan);
+            c.children.forEach((t, k) => {
+              this._addNode(sNode.id, t.label, ta[k],
+                t.color || c.color || b.color, 3, sNode.id, false);
+            });
+          }
+        });
+      }
+    });
+  }
+
+  _addNode(parentId, label, angle, color, lv, pid, isFirst) {
+    const id  = `n${this._nodes.length}`;
+    const r   = this.cfg.radii[lv];
+    const pos = this._pt(r, angle);
+    const n   = { id, label, angle, color, lv, parentId: pid,
+                  x: pos.x, y: pos.y, isFirst };
+    this._nodes.push(n); this._map[id] = n;
+    return n;
+  }
+
+  // ── BACKGROUND ──────────────────────────────────────────────
+  _drawBg() {
+    this._el('rect', { width: this.cfg.width, height: this.cfg.height,
+      fill: this.cfg.background });
+  }
+
+  // ── SLICE DIVIDERS ──────────────────────────────────────────
+  _drawSliceDividers() {
+    const n = this.data.branches.length;
+    const slice = 360 / n;
+    for (let i = 0; i < n; i++) {
+      const a   = this.cfg.startAngle - i * slice + slice / 2;
+      const far = this._pt(this.cfg.radii[3] + 90, a);
+      this._el('line', {
+        x1: this.CX, y1: this.CY,
+        x2: far.x.toFixed(1), y2: far.y.toFixed(1),
+        stroke: '#ccc', 'stroke-width': '1',
+        'stroke-dasharray': '8,6', opacity: '0.45'
+      });
+    }
+  }
+
+  // ── GUIDE RINGS ─────────────────────────────────────────────
+  _drawGuideRings() {
+    [1, 2, 3].forEach(lv =>
+      this._el('circle', { cx: this.CX, cy: this.CY, r: this.cfg.radii[lv],
+        fill: 'none', stroke: '#ddd',
+        'stroke-width': '0.9', 'stroke-dasharray': '6,5' })
+    );
+  }
+
+  // ── ALL BRANCHES ────────────────────────────────────────────
+  _drawBranches() {
+    [3, 2, 1].forEach(lv => {
+      this._nodes.filter(n => n.lv === lv).forEach(n => {
+        let x1, y1;
+        if (lv === 1) {
+          const ep = this._ept(n.angle); x1 = ep.x; y1 = ep.y;
+        } else {
+          const p = this._map[n.parentId]; x1 = p.x; y1 = p.y;
+        }
+        this._branch(x1, y1, n.x, n.y, n.color, this.cfg.strokeWidths[lv]);
+        this._label(x1, y1, n.x, n.y, n.label, n.color, this.cfg.fontSizes[lv]);
+      });
+    });
+  }
+
+  _branch(x1, y1, x2, y2, color, sw) {
+    const c = this._ctrl(x1, y1, x2, y2);
+    this._el('path', {
+      d: `M${x1.toFixed(1)},${y1.toFixed(1)} Q${c.x.toFixed(1)},${c.y.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}`,
+      stroke: color, 'stroke-width': sw,
+      fill: 'none', 'stroke-linecap': 'round'
+    });
+  }
+
+  _label(x1, y1, x2, y2, label, color, fs) {
+    const m = this._bezAt(x1, y1, x2, y2, this.cfg.labelOffset);
+    let a = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+    if (a > 90 || a < -90) a += 180;
+    const g = this._el('g', {
+      transform: `translate(${m.x.toFixed(1)},${m.y.toFixed(1)}) rotate(${a.toFixed(1)})`
+    });
+    const base = {
+      x: '0', y: '0', dy: '-7', 'text-anchor': 'middle',
+      'font-family': "'Trebuchet MS', Arial, sans-serif",
+      'font-size': fs, 'font-weight': 'bold', 'letter-spacing': '0.8'
+    };
+    this._txt(label, { ...base, fill: 'none', stroke: this.cfg.background,
+      'stroke-width': this.cfg.haloWidth, 'stroke-linejoin': 'round' }, g);
+    this._txt(label, { ...base, fill: color }, g);
+  }
+
+  // ── CENTER NODE ─────────────────────────────────────────────
+  _drawCenter() {
+    const cx = this.CX, cy = this.CY;
+    const rx = this.cfg.ellipseRX, ry = this.cfg.ellipseRY;
+
+    this._el('ellipse', { cx, cy, rx: rx+6, ry: ry+6,
+      fill: this.cfg.centerFill, opacity: '0.16' });
+    this._el('ellipse', { cx, cy, rx, ry,
+      fill: this.cfg.centerFill, stroke: this.cfg.centerStroke, 'stroke-width': '3' });
+    this._el('ellipse', { cx, cy, rx: rx-10, ry: ry-10,
+      fill: 'none', stroke: '#9B59B6', 'stroke-width': '1.1', opacity: '0.4' });
+
+    this._drawIcon(this.data.center.icon || 'book', cx, cy);
+
+    const lines = (this.data.center.label || '').split('\n');
+    const baseY = cy + 10 - (lines.length - 1) * 9;
+    lines.forEach((ln, i) =>
+      this._txt(ln, {
+        x: cx, y: baseY + i * 18, 'text-anchor': 'middle',
+        'font-family': "'Trebuchet MS', Arial, sans-serif",
+        'font-size': '13', 'font-weight': 'bold',
+        fill: 'white', 'letter-spacing': '2.5'
+      })
+    );
+  }
+
+  _drawIcon(type, cx, cy) {
+    if (type === 'scales') {
+      this._el('line',{x1:cx,y1:cy-42,x2:cx,y2:cy+2,stroke:'#D7BDE2','stroke-width':'2'});
+      this._el('line',{x1:cx-30,y1:cy-27,x2:cx+30,y2:cy-27,stroke:'#D7BDE2','stroke-width':'2'});
+      this._el('path',{d:`M${cx-30},${cy-27}l-11,17l22,0Z`,fill:'none',stroke:'#D7BDE2','stroke-width':'1.5'});
+      this._el('path',{d:`M${cx+30},${cy-27}l-11,17l22,0Z`,fill:'none',stroke:'#D7BDE2','stroke-width':'1.5'});
+    } else if (type === 'book') {
+      this._el('rect',{x:cx-18,y:cy-42,width:36,height:28,rx:3,fill:'none',stroke:'#D7BDE2','stroke-width':'1.8'});
+      this._el('line',{x1:cx,y1:cy-42,x2:cx,y2:cy-14,stroke:'#D7BDE2','stroke-width':'1.2'});
+      [cy-35,cy-28,cy-21].forEach(y=>{
+        this._el('line',{x1:cx-13,y1:y,x2:cx-3,y2:y,stroke:'#D7BDE2','stroke-width':'0.9'});
+        this._el('line',{x1:cx+3,y1:y,x2:cx+13,y2:y,stroke:'#D7BDE2','stroke-width':'0.9'});
+      });
+    } else if (type === 'brain') {
+      this._el('ellipse',{cx:cx-9,cy:cy-30,rx:13,ry:10,fill:'none',stroke:'#D7BDE2','stroke-width':'1.5'});
+      this._el('ellipse',{cx:cx+9,cy:cy-30,rx:13,ry:10,fill:'none',stroke:'#D7BDE2','stroke-width':'1.5'});
+      this._el('line',{x1:cx,y1:cy-40,x2:cx,y2:cy-20,stroke:'#D7BDE2','stroke-width':'1.2'});
+    }
+  }
+
+  // ── START BADGE ─────────────────────────────────────────────
+  _drawStart() {
+    const first = this._nodes.find(n => n.lv === 1 && n.isFirst);
+    if (!first) return;
+    const ep  = this._ept(first.angle);
+    const mid = this._bezAt(ep.x, ep.y, first.x, first.y, 0.3);
+    // Offset perpendicular to branch direction (toward "before" it)
+    const perpAngle = first.angle + 32;
+    const off = this._pt(this.cfg.radii[1] * 0.28, perpAngle);
+    const bx  = off.x, by = off.y;
+
+    this._el('circle', { cx: bx.toFixed(1), cy: by.toFixed(1), r: '26',
+      fill: this.cfg.startColor, opacity: '0.93' });
+    this._txt('START', {
+      x: bx.toFixed(1), y: (by - 5).toFixed(1),
+      'text-anchor': 'middle',
+      'font-family': "'Trebuchet MS', Arial, sans-serif",
+      'font-size': '11', 'font-weight': 'bold',
+      fill: 'white', 'letter-spacing': '1.2'
+    });
+    this._txt('►', {
+      x: bx.toFixed(1), y: (by + 11).toFixed(1),
+      'text-anchor': 'middle', 'font-size': '12', fill: 'white'
+    });
+  }
+
+  // ── MATH HELPERS ────────────────────────────────────────────
+  _pt(r, deg) {
+    const a = deg * Math.PI / 180;
+    return { x: this.CX + r * Math.cos(a), y: this.CY - r * Math.sin(a) };
+  }
+  _ept(deg) {
+    const a = deg * Math.PI / 180;
+    return { x: this.CX + this.cfg.ellipseRX * Math.cos(a),
+             y: this.CY - this.cfg.ellipseRY * Math.sin(a) };
+  }
+  _ctrl(x1, y1, x2, y2) {
+    const mx = (x1+x2)/2, my = (y1+y2)/2;
+    return { x: mx + (this.CX-mx)*0.2, y: my + (this.CY-my)*0.2 };
+  }
+  _bezAt(x1, y1, x2, y2, t) {
+    const c = this._ctrl(x1, y1, x2, y2);
+    return {
+      x: (1-t)*(1-t)*x1 + 2*(1-t)*t*c.x + t*t*x2,
+      y: (1-t)*(1-t)*y1 + 2*(1-t)*t*c.y + t*t*y2
+    };
+  }
+  _fan(center, n, spread) {
+    if (n === 1) return [center];
+    return Array.from({length:n}, (_,i) =>
+      center + spread - i * (2*spread/(n-1))
+    );
+  }
+
+  // ── SVG HELPERS ─────────────────────────────────────────────
+  _el(tag, attrs, parent) {
+    const e = document.createElementNS(this.NS, tag);
+    for (const [k,v] of Object.entries(attrs)) e.setAttribute(k, String(v));
+    (parent || this.svg).appendChild(e);
+    return e;
+  }
+  _txt(s, attrs, parent) {
+    const e = this._el('text', attrs, parent);
+    e.textContent = s; return e;
+  }
+}
+
+// ── DEMO DATA ────────────────────────────────────────────────
+const DEMO_DATA = {
+  center: { label: 'DIRITTO\nSOGGETTIVO', icon: 'scales' },
+  branches: [
+    {
+      label: 'ESERCIZIO', color: '#1A5276',
+      children: [
+        { label: 'REALIZZAZIONE', color: '#2471A3' },
+        { label: 'DIFFERENZA',    color: '#2471A3' },
+        { label: 'COATTIVA',      color: '#2471A3' },
+        { label: 'NEMINEM LAEDIT',color: '#2471A3' },
+      ]
+    },
+    {
+      label: 'ABUSO', color: '#922B21',
+      children: [
+        { label: 'BUONA FEDE',    color: '#CB4335' },
+        { label: 'EXCEPTIO DOLI', color: '#CB4335' },
+        { label: 'DIPENDENZA',    color: '#CB4335' },
+        { label: 'DOMINANTE',     color: '#CB4335' },
+      ]
+    },
+    {
+      label: 'CATEGORIE', color: '#1D6A39',
+      children: [
+        {
+          label: 'ASSOLUTI', color: '#1E8449',
+          children: [
+            { label: 'REALI',       color: '#239B56' },
+            { label: 'PERSONALITÀ', color: '#239B56' },
+            { label: 'DOVERE',      color: '#239B56' },
+          ]
+        },
+        {
+          label: 'RELATIVI', color: '#1E8449',
+          children: [{ label: 'OBBLIGO', color: '#239B56' }]
+        },
+        {
+          label: 'POTESTATIVI', color: '#1E8449',
+          children: [{ label: 'SOGGEZIONE', color: '#239B56' }]
+        },
+      ]
+    },
+  ]
+};
+
+// ── INIT ─────────────────────────────────────────────────────
+let engine = new MindMapEngine('#map-container', DEMO_DATA);
+engine.render();
+
+function rerender() {
+  const title = document.getElementById('inp-title').value;
+  const icon  = document.getElementById('inp-icon').value;
+  const bg    = document.getElementById('inp-bg').value;
+  const start = parseInt(document.getElementById('inp-start').value) || 60;
+
+  // Clone data with updated center
+  const data = { ...DEMO_DATA, center: { label: title, icon } };
+  engine = new MindMapEngine('#map-container', data, {
+    background: bg, startAngle: start
+  });
+  engine.render();
+}
+</script>
+</body>
+</html>
